@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Various utilities regarding reflection.
+ * MenuUtil contains Reflection & Utilities
  * Warning: Potentially unsafe when common sense is missing.
  *
  * @author made by Kangarko <3 Edited by OOP-778
@@ -27,13 +27,11 @@ public class MenuUtil {
 	private static Method sendPacket;
 
 	private static String SERVER_VERSION;
-	private static int SERVER_VERSION_NUM;
 
 	static {
 		try {
 			final String packageName = Bukkit.getServer() == null ? "" : Bukkit.getServer().getClass().getPackage().getName();
 			SERVER_VERSION = packageName.substring(packageName.lastIndexOf('.') + 1);
-			SERVER_VERSION_NUM = Integer.parseInt(SERVER_VERSION.split("_")[1]);
 
 			getHandle = getOFCClass("entity.CraftPlayer").getMethod("getHandle");
 			fieldPlayerConnection = getNMSClass("EntityPlayer").getField("playerConnection");
@@ -88,93 +86,6 @@ public class MenuUtil {
 	}
 
 	/**
-	 * Return a field inside of a class' instance (this instance is assumed to be the class where the field is).
-	 */
-	public static <T> T getField(Object instance, String field) {
-		for (final Field f : getAllFields(instance.getClass()))
-			if (f.getName().equals(field))
-				return getField(f, instance);
-
-		throw new ReflectionException("No such field " + field + " in " + instance.getClass());
-	}
-
-	/**
-	 * Get a field with an instance (this instance can be different then the class).
-	 */
-	public static <T> T getField(Class<?> clazz, String field, Object instance) {
-		for (final Field f : getAllFields(clazz))
-			if (f.getName().equals(field))
-				return getField(f, instance);
-
-		throw new ReflectionException("No such field " + field + " in " + instance.getClass());
-	}
-
-	// Retrieve all fields in a class and its subclasses, including private fields.
-	private final static Field[] getAllFields(Class<?> cl) {
-		final List<Field> list = new ArrayList<>();
-
-		do
-			list.addAll( Arrays.asList( cl.getDeclaredFields() ) );
-		while ( !(cl = cl.getSuperclass()).isAssignableFrom(Object.class) );
-
-		return list.toArray(new Field[0]);
-	}
-
-	/**
-	 * Get a field with an nullable instance, or throws an error on failure.
-	 */
-	public static <T> T getField(Field f, Object instance) {
-		try {
-			f.setAccessible(true);
-
-			return (T) f.get(instance);
-
-		} catch (final ReflectiveOperationException e) {
-			throw new ReflectionException("Could not get field " + f.getName() + " in instance " + instance.getClass().getSimpleName());
-		}
-	}
-
-	/**
-	 * Makes a new instance of a class, or throws an error on failure.
-	 */
-	public static <T> T instatiate(Class<T> clazz) {
-		try {
-			final Constructor<T> c = clazz.getDeclaredConstructor();
-			c.setAccessible(true);
-
-			return c.newInstance();
-
-		} catch (final ReflectiveOperationException e) {
-			throw new ReflectionException("Could not make instance of: " + clazz, e);
-		}
-	}
-
-	/**
-	 * Makes a new instance of a class, or throws an error on failure.
-	 *
-	 * Each of args must not be null.
-	 */
-	public static <T> T instatiate(Class<T> clazz, Object... args) {
-		try {
-			final List<Class<?>> classes = new ArrayList<>();
-
-			for (final Object o : args) {
-				Objects.requireNonNull(o, "Argument cannot be null when instatiating " + clazz);
-
-				classes.add(o.getClass());
-			}
-
-			final Constructor<T> c = clazz.getDeclaredConstructor(classes.toArray(new Class[0]));
-			c.setAccessible(true);
-
-			return c.newInstance(args);
-
-		} catch (final ReflectiveOperationException e) {
-			throw new ReflectionException("Could not make instance of: " + clazz, e);
-		}
-	}
-
-	/**
 	 * Find a class and cast it to a specific type.
 	 */
 	public static <T> Class<T> lookupClass(String path, Class<T> type) {
@@ -192,62 +103,6 @@ public class MenuUtil {
 		}
 	}
 
-	/**
-	 * See {@link #lookupEnum(Class, String, String)}, except for that here the error message is supplied.
-	 */
-	public static <E extends Enum<E>> E lookupEnum(Class<E> enumType, String name) {
-		return lookupEnum(enumType, name, "The enum '" + enumType.getSimpleName() + "' does not contain '" + name + "'! Available values: {available}");
-	}
-
-	/**
-	 * Search for an enum. Try to uppercase the name, replace spaces with _ and event remove the ending S to find the correct enum.
-	 * Throws an error on fail.
-	 *
-	 * Use %available% in {errMessage} to get all enum values.
-	 */
-	public static <E extends Enum<E>> E lookupEnum(Class<E> enumType, String name, String errMessage) {
-		Objects.requireNonNull(enumType, "Type missing for " + name);
-		Objects.requireNonNull(name, "Name missing for " + enumType);
-
-		final String oldName = name;
-		E result = lookupEnumSilent(enumType, name);
-
-		if (result == null) {
-			name = name.toUpperCase();
-			result = lookupEnumSilent(enumType, name);
-		}
-
-		if (result == null) {
-			name = name.replace(" ", "_");
-			result = lookupEnumSilent(enumType, name);
-		}
-
-		if (result == null)
-			result = lookupEnumSilent(enumType, name.replace("_", ""));
-
-		if (result == null) {
-			name = name.endsWith("S") ? name.substring(0, name.length() - 1) : name + "S";
-			result = lookupEnumSilent(enumType, name);
-		}
-
-		if (result == null)
-			throw new MissingEnumException(oldName, errMessage.replace("{available}", StringUtils.join(enumType.getEnumConstants(), ", ")));
-
-		return result;
-	}
-
-	/**
-	 * Search for an enum, return null if not found without exception.
-	 *
-	 * Makes the name uppercase.
-	 */
-	public static <E extends Enum<E>> E lookupEnumSilent(Class<E> enumType, String name) {
-		try {
-			return Enum.valueOf(enumType, name.toLowerCase());
-		} catch (final IllegalArgumentException ex) {
-			return null;
-		}
-	}
 
 	public static void changeTitle(Player pl, String title, String inventoryType) {
 		try {
@@ -278,27 +133,7 @@ public class MenuUtil {
 		}
 	}
 
-	public static class MissingEnumException extends ReflectionException {
-		private static final long serialVersionUID = 1L;
 
-		private final String enumName;
-
-		public MissingEnumException(String enumName, String msg) {
-			super(msg);
-
-			this.enumName = enumName;
-		}
-
-		public MissingEnumException(String enumName, String msg, Exception ex) {
-			super(msg, ex);
-
-			this.enumName = enumName;
-		}
-
-		public String getEnumName() {
-			return enumName;
-		}
-	}
 
 	public static class ReflectionException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
